@@ -1,0 +1,23 @@
+{
+  "extends": "@tsconfig/node18/tsconfig.json",
+  "ts-node": {
+    "transpileOnly": true,
+    "transpiler": "ts-node/transpilers/swc-experimental"
+  },
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "lib": ["es2020"],
+    "module": "es2022",
+    "target": "es2022",
+    "types": ["node"],
+    "outDir": "dist",
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "strictNullChecks": false,
+    "noUnusedLocals": false,
+    "emitDecoratorMetadata": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}
