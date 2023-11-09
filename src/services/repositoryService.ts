@@ -1,83 +1,100 @@
-import axios, {AxiosInstance, AxiosResponse} from "axios";
+import axios, {AxiosInstance, AxiosResponse} from 'axios';
+import dotenv from 'dotenv';
+import NodeCache from 'node-cache';
 import {
     fetchAllRepositoriesQuery,
     fetchRepositoryBasicDetailsByNameQuery,
-    fetchRepositoryFilesQuery, fetchRepositoryYamlFileQuery
-} from "../graphql/queries/repositoryQuery.ts";
-import dotenv from "dotenv";
-import NodeCache from "node-cache";
-import {RepositoryFileDetails, RepositoryFormattedDetails, RepositoryRawDetails} from "../types/RepositoryType.ts";
+    fetchRepositoryFilesQuery,
+    fetchRepositoryYamlFileQuery,
+} from '../graphql/queries/repositoryQuery.ts';
+import {RepositoryFileDetails, RepositoryFormattedDetails} from "../types/RepositoryType.ts";
+
 dotenv.config();
-const githubApiUrl = process.env.GITHUB_API_URL || "https://api.github.com/graphql";
+
+const githubApiUrl = process.env.GITHUB_API_URL || 'https://api.github.com/graphql';
 const githubClient: AxiosInstance = axios.create({
     baseURL: githubApiUrl,
     headers: {
-        "Authorization": `bearer ${process.env.GITHUB_API_TOKEN}`,
-    }
+        Authorization: `bearer ${process.env.GITHUB_API_TOKEN}`,
+    },
 });
 const cache = new NodeCache({stdTTL: 60 * 60 * 24});
 const fetchAllRepositories = async (req, res) => {
+    try {
+        const response: AxiosResponse = await githubClient.post('', {query: fetchAllRepositoriesQuery()});
 
-    const response: AxiosResponse = await githubClient.post('', {query: fetchAllRepositoriesQuery()});
-    if (response.data.errors) {
-        res.status(500).send(response.data.errors);
-    }
-    const repositories = response.data.data?.viewer?.repositories?.nodes;
-    const formattedRepositories:RepositoryFormattedDetails = repositories?.map((repository) => {
-        return {
+        if (response.data.errors) {
+            throw new Error(response.data.errors);
+        }
+
+        const repositories = response.data.data?.viewer?.repositories?.nodes;
+        const formattedRepositories: RepositoryFormattedDetails[] = repositories?.map((repository) => ({
             name: repository.name,
             size: repository.diskUsage,
-            owner: repository.owner.login
-        }
-    });
-    res.send(formattedRepositories);
-};
-const fetchRepositoryByName = async (req, res) => {
-    const cachedRepository = cache.get(req.params.name);
-    if (cachedRepository) {
-        res.send(cachedRepository);
-        return;
+            owner: repository.owner.login,
+        }));
+
+        res.send(formattedRepositories);
+    } catch (error) {
+        console.error('Error while fetching all repositories:', error);
+        res.status(500).send('Internal Server Error');
     }
-    const response: AxiosResponse = await githubClient.post('', {query: fetchRepositoryBasicDetailsByNameQuery("talzuzut", req.params.name)});
-    //TODO change hardcoded owner
-    if (response.data.errors) {
-        console.log(response.data.errors);
-        res.status(404).send("Repository not found")
-        return;
-    }
-    const repository = response.data.data?.repository;
-    const repositoryDetails: RepositoryFormattedDetails = {
-        name: repository?.name,
-        size: repository?.diskUsage.toString() + " KB",
-        owner: repository?.owner?.login,
-        visibility: repository?.isPrivate ? "Private" : "Public",
-    }
-    try {
-        const enrichedRepositoryDetails = await scanRepositoryFiles(repositoryDetails, repository?.defaultBranchRef?.name);
-        repositoryDetails.filesCount = enrichedRepositoryDetails.filesCount;
-        repositoryDetails.yamlFile = enrichedRepositoryDetails.yamlFile;
-    }
-    catch (error) {
-        console.error(error);
-        res.status(500).send("Error while fetching repository files");
-        return;
-    }
-    repositoryDetails.webhooks = [];
-    cache.set(req.params.name, repositoryDetails);
-    res.send(repositoryDetails);
 };
 
-const scanRepositoryFiles = async (repositoryDetails:RepositoryFormattedDetails, defaultBranch: string, path: string = '') => {
-    let  yamlFilePath: string;
+const fetchRepositoryByName = async (req, res) => {
+    try {
+        const cachedRepository = cache.get(req.params.name);
+
+        if (cachedRepository) {
+            res.send(cachedRepository);
+            return;
+        }
+
+        const response: AxiosResponse = await githubClient.post('', {
+            query: fetchRepositoryBasicDetailsByNameQuery('talzuzut', req.params.name),
+        });
+
+        if (response.data.errors) {
+            console.log(response.data.errors);
+            res.status(404).send('Repository not found');
+            return;
+        }
+
+        const repository = response.data.data?.repository;
+        const repositoryDetails: RepositoryFormattedDetails = {
+            name: repository?.name,
+            size: `${repository?.diskUsage} KB`,
+            owner: repository?.owner?.login,
+            visibility: repository?.isPrivate ? 'Private' : 'Public',
+        };
+
+        const enrichedRepositoryDetails = await scanRepositoryFiles(repositoryDetails, repository?.defaultBranchRef?.name);
+
+        repositoryDetails.filesCount = enrichedRepositoryDetails.filesCount;
+        repositoryDetails.yamlFile = enrichedRepositoryDetails.yamlFile;
+
+        repositoryDetails.webhooks = [];
+        cache.set(req.params.name, repositoryDetails);
+        res.send(repositoryDetails);
+    } catch (error) {
+        console.error('Error while fetching repository by name:', error);
+        res.status(500).send('Internal Server Error');
+    }
+};
+
+const scanRepositoryFiles = async (repositoryDetails: RepositoryFormattedDetails, defaultBranch: string, path: string = '') => {
+    let yamlFilePath: string;
     async function countRepositoryFiles(owner: string, name: string, defaultBranch: string, path: string = ''): Promise<number> {
         try {
-            const response: AxiosResponse = await githubClient.post('', {query: fetchRepositoryFilesQuery(owner, name, path, defaultBranch)});
+            const response: AxiosResponse = await githubClient.post('', {
+                query: fetchRepositoryFilesQuery(owner, name, path, defaultBranch),
+            });
 
             if (response.data.errors) {
                 throw new Error(response.data.errors);
             }
 
-            const entries:RepositoryFileDetails[]  = response?.data?.data?.repository?.object?.entries;
+            const entries: RepositoryFileDetails[] = response?.data?.data?.repository?.object?.entries;
 
             if (!entries) {
                 return 0;
@@ -85,11 +102,11 @@ const scanRepositoryFiles = async (repositoryDetails:RepositoryFormattedDetails,
 
             const fileCountPromises: Promise<number>[] = entries.map(async (entry) => {
                 if (entry.type === 'tree') {
-                    const folderPath:string = path ? path + '/' + entry.name : entry.name;
+                    const folderPath: string = path ? `${path}/${entry.name}` : entry.name;
                     return countRepositoryFiles(owner, name, defaultBranch, folderPath);
                 } else {
-                    if (! !!yamlFilePath &&( entry.extension === '.yml' || entry.extension === '.yaml')) {
-                        yamlFilePath = path === "" ? entry.name : path + '/' + entry.name;
+                    if (!yamlFilePath && (entry.extension === '.yml' || entry.extension === '.yaml')) {
+                        yamlFilePath = path === '' ? entry.name : `${path}/${entry.name}`;
                     }
                     return 1;
                 }
@@ -104,27 +121,33 @@ const scanRepositoryFiles = async (repositoryDetails:RepositoryFormattedDetails,
         }
     }
 
-    repositoryDetails.filesCount = await countRepositoryFiles(repositoryDetails.owner,repositoryDetails.name, defaultBranch, path);
-    if (!!yamlFilePath) {
+    repositoryDetails.filesCount = await countRepositoryFiles(repositoryDetails.owner, repositoryDetails.name, defaultBranch, path);
+
+    if (yamlFilePath) {
         repositoryDetails.yamlFile = await getYamlFileContent(repositoryDetails, defaultBranch, yamlFilePath);
     }
+
     return repositoryDetails;
-}
+};
 
-const getYamlFileContent = async (repositoryDetails:RepositoryFormattedDetails, defaultBranch:string, path:string ) => {
-    const response: AxiosResponse = await githubClient.post('', {query: fetchRepositoryYamlFileQuery(repositoryDetails.owner, repositoryDetails.name, path, defaultBranch)});
-    if (response.data.errors) {
-        throw new Error(response.data.errors);
+const getYamlFileContent = async (repositoryDetails: RepositoryFormattedDetails, defaultBranch: string, path: string) => {
+    try {
+        const response: AxiosResponse = await githubClient.post('', {
+            query: fetchRepositoryYamlFileQuery(repositoryDetails.owner, repositoryDetails.name, path, defaultBranch),
+        });
+
+        if (response.data.errors) {
+            throw new Error(response.data.errors);
+        }
+
+        return response.data.data?.repository?.object?.text;
+    } catch (error) {
+        console.error('Error while fetching YAML file content:', error);
+        throw error;
     }
-    return response.data.data?.repository?.object?.text;
-
-}
-
+};
 
 export const repositoryService = {
     fetchAllRepositories,
-    fetchRepositoryByName
-}
-
-
-
+    fetchRepositoryByName,
+};
