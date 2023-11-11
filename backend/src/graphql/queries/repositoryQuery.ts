@@ -1,33 +1,3 @@
-/*const fetchAllRepositoriesQuery = gql.query({
-    operation: 'viewer',
-    variables: {
-        first: 100,
-        orderBy: {
-            field: 'NAME',
-            direction: 'ASC'
-        }
-
-    },
-    fields: [
-        {
-            repositories:
-                [
-                    {
-                        nodes:
-                            [
-                                'name',
-                                'diskUsage',
-                                {
-                                    owner:
-                                        ['login']
-                                }
-                            ]
-                    }
-                ]
-        }
-    ]
-});*/
-
 
 const fetchAllRepositoriesQuery = (nextPageCursor: String = "") => {
     const cursor = nextPageCursor ? `, after: "${nextPageCursor}"` : "";
