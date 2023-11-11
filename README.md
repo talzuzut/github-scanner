@@ -1,6 +1,6 @@
 # GitHub Scanner
 
-GitHub Scanner is a web application that allows you to search and explore GitHub repositories. It consists of a frontend and a backend, which interact with the GitHub API to fetch and display repository information.
+GitHub Scanner is a web application that allows you to search and explore GitHub repositories. It includes a backend API that allows you to scan GitHub repositories, retrieve details about specific repositories, and a frontend application that allows you to search for repositories and view their details.
 
 ## Getting Started
 
