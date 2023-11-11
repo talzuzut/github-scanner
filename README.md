@@ -12,7 +12,7 @@ To get started with GitHub Scanner, follow these instructions:
 
 ### Environment Variables
 
-1. In the root directory of the project, create an `.env` file and add your GitHub API token as follows:
+1. In the `backend` directory of the project, create an `.env` file and add your GitHub API token as follows:
 
 `GIT_HUB_API_TOKEN=your_token_here`
 
