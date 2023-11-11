@@ -12,7 +12,6 @@ type RepoDetails {
     isPrivate: Boolean
     fileCount: Int
     yamlContent: String
-    webhooks: Int
 }
 
 type Query {

@@ -2,6 +2,7 @@ import axios, {AxiosInstance, AxiosResponse} from 'axios';
 import dotenv from 'dotenv';
 import NodeCache from 'node-cache';
 import {
+    fetchAllRepositoriesByOwnerQuery,
     fetchAllRepositoriesQuery,
     fetchRepositoryBasicDetailsByNameQuery,
     fetchRepositoryFilesQuery,
@@ -34,24 +35,49 @@ const fetchAllRepositories = async (req, res) => {
             owner: repository.owner.login,
         }));
 
-        res.send(formattedRepositories);
+        res.status(200).send(formattedRepositories);
     } catch (error) {
         console.error('Error while fetching all repositories:', error);
         res.status(500).send('Internal Server Error');
     }
 };
-
-const fetchRepositoryByName = async (req, res) => {
+const fetchAllRepositoriesByOwner = async (req, res) => {
     try {
-        const cachedRepository = cache.get(req.params.name);
+        const response: AxiosResponse = await githubClient.post('', {
+            query: fetchAllRepositoriesByOwnerQuery(req.params.owner),
+        });
+
+        if (response.data.errors) {
+            throw new Error(response.data.errors);
+        }
+
+        const repositories = response.data.data?.user?.repositories?.nodes;
+        const formattedRepositories: RepositoryFormattedDetails[] = repositories?.filter(repository => repository.owner.login === req.params.owner).map((repository) => ({
+            name: repository.name,
+            size: repository.diskUsage,
+            owner: repository.owner.login,
+        }));
+
+        res.status(200).send(formattedRepositories);
+    } catch (error) {
+        console.error('Error while fetching all repositories by owner:', error);
+        res.status(500).send('Internal Server Error');
+    }
+
+}
+const getRelatedCacheKey = (owner: string, name: string) => `${owner}/${name}`;
+const fetchRepositoryByNameAndOwner = async (req, res) => {
+    try {
+        const cachingKey = getRelatedCacheKey(req.params.owner, req.params.name);
+        const cachedRepository = cache.get(cachingKey);
 
         if (cachedRepository) {
-            res.send(cachedRepository);
+            res.status(200).send(cachedRepository);
             return;
         }
 
         const response: AxiosResponse = await githubClient.post('', {
-            query: fetchRepositoryBasicDetailsByNameQuery('talzuzut', req.params.name),
+            query: fetchRepositoryBasicDetailsByNameQuery(req.params.owner, req.params.name),
         });
 
         if (response.data.errors) {
@@ -73,9 +99,8 @@ const fetchRepositoryByName = async (req, res) => {
         repositoryDetails.filesCount = enrichedRepositoryDetails.filesCount;
         repositoryDetails.yamlFile = enrichedRepositoryDetails.yamlFile;
 
-        repositoryDetails.webhooks = [];
-        cache.set(req.params.name, repositoryDetails);
-        res.send(repositoryDetails);
+        cache.set(cachingKey, repositoryDetails);
+        res.status(200).send(repositoryDetails);
     } catch (error) {
         console.error('Error while fetching repository by name:', error);
         res.status(500).send('Internal Server Error');
@@ -84,6 +109,7 @@ const fetchRepositoryByName = async (req, res) => {
 
 const scanRepositoryFiles = async (repositoryDetails: RepositoryFormattedDetails, defaultBranch: string, path: string = '') => {
     let yamlFilePath: string;
+
     async function countRepositoryFiles(owner: string, name: string, defaultBranch: string, path: string = ''): Promise<number> {
         try {
             const response: AxiosResponse = await githubClient.post('', {
@@ -149,5 +175,6 @@ const getYamlFileContent = async (repositoryDetails: RepositoryFormattedDetails,
 
 export const repositoryService = {
     fetchAllRepositories,
-    fetchRepositoryByName,
+    fetchRepositoryByNameAndOwner,
+    fetchAllRepositoriesByOwner
 };

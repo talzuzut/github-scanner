@@ -6,10 +6,14 @@
   },
   "compilerOptions": {
     "experimentalDecorators": true,
-    "lib": ["es2020"],
+    "lib": [
+      "es2020"
+    ],
     "module": "es2022",
     "target": "es2022",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "outDir": "dist",
     "noImplicitAny": false,
     "esModuleInterop": true,
@@ -18,6 +22,10 @@
     "emitDecoratorMetadata": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
