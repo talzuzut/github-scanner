@@ -94,7 +94,6 @@ const App: React.FC = () => {
             return response.data;
         } catch (error: any) {
             console.log(error);
-            debugger;
             throw error;
         }
     };
