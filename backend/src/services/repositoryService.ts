@@ -86,8 +86,6 @@ const fetchAllRepositoriesByOwner = async (req, res) => {
     } catch (error:any) {
         console.error('Error while fetching all repositories by owner:', error);
        return res.status(500).send('Internal Server Error');
-         // return errorHandler(error, res);
-        // res.status(error.response.status).send(error.response.data.message);
     }
 
 }

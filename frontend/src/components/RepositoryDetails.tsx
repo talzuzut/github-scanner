@@ -1,6 +1,3 @@
-/*
-import {Card, CardContent, CardHeader, Typography} from "@mui/material";
-*/
 import {RepositoryFormattedDetails} from "../types/RepositoryType";
 import React from "react";
 import {Card} from "react-bootstrap";
