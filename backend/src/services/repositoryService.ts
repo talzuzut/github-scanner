@@ -24,19 +24,19 @@ const githubClient: AxiosInstance = axios.create({
 });
 const cache = new NodeCache({stdTTL: 60 * 60 * 24});
 
-function errorHandler(error: AxiosError<unknown, any>, res) {
-    if (error.response?.status === 401) {
+function errorHandler(error:any, res:any) {
+    if (error.response?.status === 401 || error.type==="UNAUTHORIZED" || error.code ==="401") {
         console.error('Unauthorized error while fetching all repositories:', error);
         return res.status(401).send('Unauthorized');
-    } else if (error.response?.status === 403) {
+    } else if (error.response?.status === 403 || error.type==="FORBIDDEN"|| error.code ==="403") {
         console.error('Forbidden error while fetching all repositories:', error);
         res.status(403).send('Forbidden');
         return;
-    } else if (error.response?.status === 404) {
+    } else if (error.response?.status === 404 || error.type==="NOT_FOUND" || error.code ==="404") {
         console.error('Not found error while fetching all repositories:', error);
         res.status(404).send('Not found');
         return;
-    } else if (error.response?.status === 500) {
+    } else if (error.response?.status === 500 || error.type==="INTERNAL_SERVER_ERROR" || error.code ==="500"){
         console.error('Internal Server Error while fetching all repositories:', error);
         res.status(500).send('Internal Server Error');
         return;
@@ -50,7 +50,7 @@ const fetchAllRepositories = async (req, res) => {
         const response: AxiosResponse = await githubClient.post('', {query: fetchAllRepositoriesQuery()});
 
         if (response.data.errors) {
-            throw new Error(response.data.errors);
+            throw response.data.errors[0];
         }
 
         const repositories = response.data.data?.viewer?.repositories?.nodes;
@@ -72,7 +72,10 @@ const fetchAllRepositoriesByOwner = async (req, res) => {
         });
 
         if (response.data.errors) {
-            throw new Error(response.data.errors);
+            if (response.data.errors[0].type==="NOT_FOUND"){
+                throw new AxiosError("NOT_FOUND","404",null,req,res);
+            }
+            throw response.data.errors[0];
         }
 
         const repositories = response.data.data?.user?.repositories?.nodes;
@@ -84,8 +87,7 @@ const fetchAllRepositoriesByOwner = async (req, res) => {
 
         res.status(200).send(formattedRepositories);
     } catch (error:any) {
-        console.error('Error while fetching all repositories by owner:', error);
-       return res.status(500).send('Internal Server Error');
+        return errorHandler(error, res);
     }
 
 }
@@ -106,8 +108,7 @@ const fetchRepositoryByNameAndOwner = async (req, res) => {
 
         if (response.data.errors) {
             console.log(response.data.errors);
-            res.status(404).send('Repository not found');
-            return;
+            throw response.data.errors[0];
         }
 
         const repository = response.data.data?.repository;
@@ -125,9 +126,8 @@ const fetchRepositoryByNameAndOwner = async (req, res) => {
 
         cache.set(cachingKey, repositoryDetails);
         res.status(200).send(repositoryDetails);
-    } catch (error) {
-        console.error('Error while fetching repository by name:', error);
-        res.status(500).send('Internal Server Error');
+    } catch (error:any) {
+        return errorHandler(error, res);
     }
 };
 
@@ -141,7 +141,7 @@ const scanRepositoryFiles = async (repositoryDetails: RepositoryFormattedDetails
             });
 
             if (response.data.errors) {
-                throw new Error(response.data.errors);
+               throw response.data.errors[0];
             }
 
             const entries: RepositoryFileDetails[] = response?.data?.data?.repository?.object?.entries;
@@ -187,7 +187,7 @@ const getYamlFileContent = async (repositoryDetails: RepositoryFormattedDetails,
         });
 
         if (response.data.errors) {
-            throw new Error(response.data.errors);
+            throw response.data.errors[0];
         }
 
         return response.data.data?.repository?.object?.text;

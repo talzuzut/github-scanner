@@ -18,8 +18,10 @@ const App: React.FC = () => {
         baseURL: BACKEND_BASE_URL,
     });
     const navigate = useNavigate();
-    const handleError = (response: AxiosResponse | null, errorMessage: string | null) => {
-        const message = errorMessage ? errorMessage : "Github API token is invalid or reached the limit of requests..";
+    const handleError = (response: AxiosResponse | null, error:any) => {
+
+        const message =  error?.response?.data || "Github API token is invalid or reached the limit of requests..";
+        // const message = errorMessage ? errorMessage : "";
         console.error(message);
         if (!response) {
             setRepositoryList(null);
@@ -42,11 +44,12 @@ const App: React.FC = () => {
             if (handleError(response, "Repository doesn't exist!")) {
                 return;
             }
+            setErrorMessage(null);
             setRepositoryList(null);
             setRepositoryDetails(response.data);
             navigate(`/${owner}/${repositoryName}`);
         } catch (error: any) {
-            handleError(null, error?.response?.data?.message);
+            handleError(null, error);
             return;
         }
     };
@@ -60,10 +63,11 @@ const App: React.FC = () => {
             const response = await fetchAllRepositoriesByOwner(owner);
 
             setRepositoryDetails(null);
+            setErrorMessage(null);
             setRepositoryList(response);
             navigate(`/${owner}`);
         } catch (error: any) {
-            handleError(null, error?.response?.data?.message);
+            handleError(null, error);
             return;
         }
     };
@@ -80,7 +84,7 @@ const App: React.FC = () => {
             }
             return response.data;
         } catch (error: any) {
-            handleError(null, error?.response?.data?.message);
+            handleError(null, error);
             return;
         }
     };
@@ -104,9 +108,10 @@ const App: React.FC = () => {
                 return;
             }
             setRepositoryDetails(null);
+            setErrorMessage(null);
             setRepositoryList(response.data);
         } catch (error: any) {
-            handleError(null, error?.response?.data?.message);
+            handleError(null, error);
             return;
         }
     };
