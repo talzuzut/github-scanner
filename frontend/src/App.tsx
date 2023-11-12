@@ -18,11 +18,13 @@ const App: React.FC = () => {
         baseURL: BACKEND_BASE_URL,
     });
     const navigate = useNavigate();
-    const handleError = (response: AxiosResponse, errorMessage: string | null) => {
+    const handleError = (response: AxiosResponse | null, errorMessage: string | null) => {
+        const message = errorMessage ? errorMessage : "Github API token is invalid or reached the limit of requests..";
+        console.error(message);
         if (!response) {
             setRepositoryList(null);
             setRepositoryDetails(null);
-            setErrorMessage(errorMessage);
+            setErrorMessage(message);
             return true;
         } else {
             setErrorMessage(null);
@@ -44,7 +46,8 @@ const App: React.FC = () => {
             setRepositoryDetails(response.data);
             navigate(`/${owner}/${repositoryName}`);
         } catch (error: any) {
-            console.log(error);
+            handleError(null, error?.response?.data?.message);
+            return;
         }
     };
 
@@ -55,14 +58,13 @@ const App: React.FC = () => {
                 return;
             }
             const response = await fetchAllRepositoriesByOwner(owner);
-            if (handleError(response, "Provide a valid owner")) {
-                return;
-            }
+
             setRepositoryDetails(null);
             setRepositoryList(response);
             navigate(`/${owner}`);
-        } catch (error) {
-            console.log(error);
+        } catch (error: any) {
+            handleError(null, error?.response?.data?.message);
+            return;
         }
     };
 
@@ -77,37 +79,35 @@ const App: React.FC = () => {
                 return;
             }
             return response.data;
-        } catch (error) {
-            console.log(error);
+        } catch (error: any) {
+            handleError(null, error?.response?.data?.message);
+            return;
         }
     };
 
     const fetchAllRepositoriesByOwner = async (owner: string) => {
         try {
-            if (!owner) {
-                setErrorMessage("Owner is required");
-                return;
-            }
             const response = await api.get(`/repositories/${owner}`);
-            if (handleError(response, "Provide a valid owner")) {
-                return;
-            }
             return response.data;
-        } catch (error) {
-            console.log(error)
+        } catch (error: any) {
+            console.log(error);
+            debugger;
+            throw error;
         }
     };
 
     const fetchAllRepositories = async () => {
         try {
             const response = await api.get('/repositories');
+            console.log(response);
             if (handleError(response, "Github API token is invalid or reached the limit of requests..")) {
                 return;
             }
             setRepositoryDetails(null);
             setRepositoryList(response.data);
-        } catch (error) {
-            console.log(error);
+        } catch (error: any) {
+            handleError(null, error?.response?.data?.message);
+            return;
         }
     };
 
@@ -139,6 +139,7 @@ const App: React.FC = () => {
                 ) : (
                     <div>
                         <Routes>
+                            <Route path="/" element={<></>}/>
                             <Route path="/:owner" element={<RepositoryList repositories={repositoryList}/>}/>
                             <Route path="/currentUser" element={<RepositoryList repositories={repositoryList}/>}/>
                             <Route path="/:owner/:name" element={<SingleRepository/>}/>

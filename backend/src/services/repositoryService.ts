@@ -1,4 +1,4 @@
-import axios, {AxiosInstance, AxiosResponse} from 'axios';
+import axios, {AxiosError, AxiosInstance, AxiosResponse} from 'axios';
 import dotenv from 'dotenv';
 import NodeCache from 'node-cache';
 import {
@@ -23,6 +23,28 @@ const githubClient: AxiosInstance = axios.create({
     },
 });
 const cache = new NodeCache({stdTTL: 60 * 60 * 24});
+
+function errorHandler(error: AxiosError<unknown, any>, res) {
+    if (error.response?.status === 401) {
+        console.error('Unauthorized error while fetching all repositories:', error);
+        return res.status(401).send('Unauthorized');
+    } else if (error.response?.status === 403) {
+        console.error('Forbidden error while fetching all repositories:', error);
+        res.status(403).send('Forbidden');
+        return;
+    } else if (error.response?.status === 404) {
+        console.error('Not found error while fetching all repositories:', error);
+        res.status(404).send('Not found');
+        return;
+    } else if (error.response?.status === 500) {
+        console.error('Internal Server Error while fetching all repositories:', error);
+        res.status(500).send('Internal Server Error');
+        return;
+    }
+    console.error('Error while fetching all repositories:', error);
+    return;
+}
+
 const fetchAllRepositories = async (req, res) => {
     try {
         const response: AxiosResponse = await githubClient.post('', {query: fetchAllRepositoriesQuery()});
@@ -39,9 +61,8 @@ const fetchAllRepositories = async (req, res) => {
         }));
 
         res.status(200).send(formattedRepositories);
-    } catch (error) {
-        console.error('Error while fetching all repositories:', error);
-        res.status(500).send('Internal Server Error');
+    } catch (error:any) {
+        return errorHandler(error, res);
     }
 };
 const fetchAllRepositoriesByOwner = async (req, res) => {
@@ -62,9 +83,11 @@ const fetchAllRepositoriesByOwner = async (req, res) => {
         }));
 
         res.status(200).send(formattedRepositories);
-    } catch (error) {
+    } catch (error:any) {
         console.error('Error while fetching all repositories by owner:', error);
-        res.status(500).send('Internal Server Error');
+       return res.status(500).send('Internal Server Error');
+         // return errorHandler(error, res);
+        // res.status(error.response.status).send(error.response.data.message);
     }
 
 }
