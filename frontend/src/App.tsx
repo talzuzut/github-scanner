@@ -21,7 +21,6 @@ const App: React.FC = () => {
     const handleError = (response: AxiosResponse | null, error:any) => {
 
         const message =  error?.response?.data || "Github API token is invalid or reached the limit of requests..";
-        // const message = errorMessage ? errorMessage : "";
         console.error(message);
         if (!response) {
             setRepositoryList(null);
