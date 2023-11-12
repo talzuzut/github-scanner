@@ -13,6 +13,9 @@ import {RepositoryFileDetails, RepositoryFormattedDetails} from "../types/Reposi
 dotenv.config();
 
 const githubApiUrl = process.env.GITHUB_API_URL || 'https://api.github.com/graphql';
+if(!process.env.GITHUB_API_TOKEN) {
+    throw new Error('GITHUB_API_TOKEN is not defined');
+}
 const githubClient: AxiosInstance = axios.create({
     baseURL: githubApiUrl,
     headers: {
